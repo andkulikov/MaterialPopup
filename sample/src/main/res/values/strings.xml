@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MaterialPopup</string>
+
+    <string name="popup_btn">Show popup</string>
+</resources>
