@@ -1,14 +1,16 @@
 package com.github.andkulikov.popups;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.support.v4.view.animation.FastOutSlowInInterpolator;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
 
 /**
@@ -93,11 +95,16 @@ class PopupContainer extends FrameLayout {
     }
 
     private void showInternal() {
-        mCurrentPopup.startAnimation(createAnim(true));
+        createAnim(mCurrentPopup, true).start();
     }
 
-    private Animation createAnim(boolean in) {
-        return AnimationUtils.loadAnimation(getContext(), in ? R.anim.popup_in : R.anim.popup_out);
+    private Animator createAnim(Popup popup, boolean in) {
+        float start = in ? 0 : 1;
+        float end = in ? 1 : 0;
+        Animator animator = ObjectAnimator.ofFloat(popup, Popup.VISIBLE_RATE_FLOAT, start, end);
+        animator.setDuration(400);
+        animator.setInterpolator(new FastOutSlowInInterpolator());
+        return animator;
     }
 
     public boolean isAnyPopupShowing() {
@@ -111,8 +118,9 @@ class PopupContainer extends FrameLayout {
             if (mCurrentPopup.isModal()) {
                 mCatchTouchEvents = true;
             }
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                dismissCurrentPopup();
+            if (mCurrentPopup.isCanceledOnTouchOutside() &&
+                    event.getAction() == MotionEvent.ACTION_DOWN) {
+                dismiss(mCurrentPopup);
             }
         }
         if (mCatchTouchEvents) {
@@ -134,15 +142,11 @@ class PopupContainer extends FrameLayout {
     void dismissCurrentPopup() {
         if (isAnyPopupShowing()) {
             final View view = mCurrentPopup;
-            Animation animOut = createAnim(false);
-            animOut.setAnimationListener(new Animation.AnimationListener() {
-                @Override
-                public void onAnimationStart(Animation animation) {
-                    // do nothing
-                }
+            Animator animOut = createAnim(mCurrentPopup, false);
+            animOut.addListener(new AnimatorListenerAdapter() {
 
                 @Override
-                public void onAnimationEnd(Animation animation) {
+                public void onAnimationEnd(Animator animation) {
                     view.post(new Runnable() {
                         @Override
                         public void run() {
@@ -151,12 +155,8 @@ class PopupContainer extends FrameLayout {
                     });
                 }
 
-                @Override
-                public void onAnimationRepeat(Animation animation) {
-                    // do nothing
-                }
             });
-            mCurrentPopup.startAnimation(animOut);
+            animOut.start();
             mCurrentPopup = null;
         }
     }
